@@ -5,6 +5,7 @@
 import numpy as np
 from dataclasses import dataclass, field
 from ._numerical import antideriv
+from functools import cached_property
 
 
 @dataclass(frozen=True)
@@ -13,37 +14,46 @@ class LCDM:
     Om: float
     Ol: float = None
     Ok: float = None
-    dh: float = field(init=False, repr=False)
     zmax: float = field(default=1100., repr=False)
     gamma: float = field(default=6/11, repr=False)
+
+    def _set(self, a, v):
+        object.__setattr__(self, a, v)
 
     def __post_init__(self):
         # dark energy density
         if self.Ol is None:
-            object.__setattr__(self, 'Ol', 1 - self.Om - (self.Ok or 0.))
+            self._set('Ol', 1 - self.Om - (self.Ok or 0.))
 
         # curvature density
         if self.Ok is None:
-            object.__setattr__(self, 'Ok', 1 - self.Om - self.Ol)
+            self._set('Ok', 1 - self.Om - self.Ol)
 
         # check that sum of parameters is unity
         if not np.isclose(self.Om + self.Ol + self.Ok, 1.):
             raise ValueError('density parameters do not sum to unity')
 
         # set the curvature parameter K = sqrt(|Ok|)
-        object.__setattr__(self, 'K', np.sqrt(np.fabs(self.Ok)))
+        self._set('K', np.sqrt(np.fabs(self.Ok)))
 
-        # Hubble distance
-        object.__setattr__(self, 'dh', 299792.458/self.H0)
+    @cached_property
+    def _xc(self):
+        '''dimensionless comoving distance interpolator'''
+        def f(z):
+            return 1/self.e(z)
+        return antideriv(f, 0., self.zmax, 0.01, inverse=True)
 
-        # compute the comoving distance interpolator
-        _xc, _xc_inv = antideriv(lambda z: 1/self.e(z), 0., self.zmax, 0.01, inverse=True)
-        object.__setattr__(self, '_xc', _xc)
-        object.__setattr__(self, '_xc_inv', _xc_inv)
+    @cached_property
+    def _ln_gf(self):
+        '''logarithm of growth function interpolator'''
+        def f(z):
+            return -1/(1 + z) * self.Omz(z)**self.gamma
+        return antideriv(f, 0., self.zmax, 0.01)
 
-        # compute the growth factor interpolator
-        _gf = antideriv(lambda z: self.Omz(z)**self.gamma/(1 + z), 0., self.zmax, 0.01)
-        object.__setattr__(self, '_gf', _gf)
+    @cached_property
+    def dh(self):
+        '''Hubble distance'''
+        return 299792.458/self.H0
 
     def a(self, z):
         '''scale factor'''
@@ -72,12 +82,12 @@ class LCDM:
 
     def gf(self, z):
         '''growth function'''
-        return np.exp(-self._gf(z))
+        return np.exp(self._ln_gf(z))
 
     def xc(self, z, zp=None):
         '''dimensionless comoving distance'''
         if zp is None:
-            return self._xc(z)
+            return self._xc[0](z)
         else:
             return self.xc(zp) - self.xc(z)
 
@@ -100,7 +110,7 @@ class LCDM:
 
     def xc_inv(self, xc):
         '''inverse function for dimensionless comoving distance'''
-        return self._xc_inv(xc)
+        return self._xc[1](xc)
 
     def dc_inv(self, dc):
         '''inverse function for comoving distance'''
