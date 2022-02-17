@@ -10,7 +10,7 @@ from functools import cached_property
 
 @dataclass(frozen=True)
 class LCDM:
-    H0: float
+    h: float
     Om: float
     Ol: float = None
     Ok: float = None
@@ -53,7 +53,7 @@ class LCDM:
     @cached_property
     def dh(self):
         '''Hubble distance'''
-        return 299792.458/self.H0
+        return 2997.92458/self.h
 
     def a(self, z):
         '''scale factor'''
