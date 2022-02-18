@@ -95,6 +95,14 @@ class LCDM:
         '''comoving distance'''
         return self.dh * self.xc(z, zp)
 
+    def xc_inv(self, xc):
+        '''inverse function for dimensionless comoving distance'''
+        return self._xc[1](xc)
+
+    def dc_inv(self, dc):
+        '''inverse function for comoving distance'''
+        return self.xc_inv(dc/self.dh)
+
     def xm(self, z, zp=None):
         '''dimensionless transverse comoving distance'''
         if self.Ok > 0:
@@ -108,14 +116,6 @@ class LCDM:
         '''transverse comoving distance'''
         return self.dh * self.xm(z, zp)
 
-    def xc_inv(self, xc):
-        '''inverse function for dimensionless comoving distance'''
-        return self._xc[1](xc)
-
-    def dc_inv(self, dc):
-        '''inverse function for comoving distance'''
-        return self.xc_inv(dc/self.dh)
-
     def xm_inv(self, xm):
         '''inverse function for dimensionless transverse comoving distance'''
         if self.Ok > 0:
@@ -128,3 +128,35 @@ class LCDM:
     def dm_inv(self, dm):
         '''inverse function for transverse comoving distance'''
         return self.xm_inv(dm/self.dh)
+
+    def dvc(self, z):
+        r'''dimensionless differential comoving volume
+
+        If :math:`V_c` is the comoving volume of a redshift slice with solid
+        angle :math:`\Omega`, this function returns
+
+        .. math::
+
+            \mathtt{dvc(z)}
+            = \frac{1}{d_H^3} \, \frac{dV_c}{d\Omega \, dz}
+            = \frac{x_M^2(z)}{E(z)}
+            = \frac{\mathtt{xm(z)**2}}{\mathtt{e(z)}} \;.
+
+        '''
+
+        return self.xm(z)**2/self.e(z)
+
+    def vc(self, z, zp=None):
+        '''dimensionless comoving volume'''
+
+        if zp is not None:
+            return self.vc(zp) - self.vc(z)
+
+        x = self.xc(z)
+
+        if self.Ok > 0:
+            return (np.sinh(2*self.K*x) - 2*self.K*x)/(4*self.K**3)
+        elif self.Ok < 0:
+            return (2*self.K*x - np.sin(2*self.K*x))/(4*self.K**3)
+        else:
+            return x**3/3
