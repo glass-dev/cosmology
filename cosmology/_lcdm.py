@@ -5,7 +5,7 @@
 import numpy as np
 from dataclasses import dataclass, field
 from ._numerical import antideriv
-from functools import cached_property
+from functools import lru_cache
 
 
 @dataclass(frozen=True)
@@ -36,21 +36,24 @@ class LCDM:
         # set the curvature parameter K = sqrt(|Ok|)
         self._set('K', np.sqrt(np.fabs(self.Ok)))
 
-    @cached_property
+    @property
+    @lru_cache(maxsize=None)
     def _xc(self):
         '''dimensionless comoving distance interpolator'''
         def f(z):
             return 1/self.e(z)
         return antideriv(f, 0., self.zmax, 0.01, inverse=True)
 
-    @cached_property
+    @property
+    @lru_cache(maxsize=None)
     def _ln_gf(self):
         '''logarithm of growth function interpolator'''
         def f(z):
             return -1/(1 + z) * self.Omz(z)**self.gamma
         return antideriv(f, 0., self.zmax, 0.01)
 
-    @cached_property
+    @property
+    @lru_cache(maxsize=None)
     def dh(self):
         '''Hubble distance'''
         return 2997.92458/self.h

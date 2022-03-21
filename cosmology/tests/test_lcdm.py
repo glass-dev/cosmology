@@ -8,7 +8,7 @@ def test_xc_flat():
     h = np.random.rand()
     Om = np.random.rand()
 
-    cosmo = LCDM(H0=100*h, Om=Om)
+    cosmo = LCDM(h=h, Om=Om)
 
     z = np.linspace(0., cosmo.zmax-1, int(cosmo.zmax))
     xc = cosmo.xc(z)
@@ -26,7 +26,7 @@ def test_xc_inv(k):
     Om = np.random.rand()
     Ok = k*np.random.rand()
 
-    cosmo = LCDM(H0=100*h, Om=Om, Ok=Ok)
+    cosmo = LCDM(h=h, Om=Om, Ok=Ok)
 
     z = np.linspace(0., cosmo.zmax-1, int(cosmo.zmax))
     xc = cosmo.xc(z)

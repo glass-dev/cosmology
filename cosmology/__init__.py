@@ -1,7 +1,7 @@
 # author: Nicolas Tessore <n.tessore@ucl.ac.uk>
 # license: MIT
 
-__version__ = '0.0.1'
+__version__ = '2022.3.21'
 
 __all__ = [
     'LCDM',
