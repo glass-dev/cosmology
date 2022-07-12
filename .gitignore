@@ -4,3 +4,4 @@ build
 __pycache__
 *.swp
 docs/reference
+docs/_build
