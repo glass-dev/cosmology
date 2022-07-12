@@ -9,10 +9,10 @@ PI = np.pi
 SRPI = PI**0.5
 
 
-def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat'):
+def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat', krgood=True, deriv=False):
     r'''mass variance from matter power spectrum
 
-    Computes the mass variance :math:`\sigma(r)` inside a spherical window of
+    Computes the mass variance :math:`\sigma^2(r)` inside a spherical window of
     scale :math:`r` from an input matter power spectrum.  Commonly a tophat
     window is used to produce the variance in spheres of a given radius, but
     other choices are supported.
@@ -21,6 +21,9 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat'):
     variance will returned on a logarithmic grid.  By default, the output grid
     is scaled such that :math:`k_i \, r_{n-i+1} = 1 \forall i = 1, \ldots, n`,
     but can be shifted to other constants using the ``kr`` parameter.
+
+    The function can return the derivative of :math:`\sigma^2(r)` with respect
+    to :math:`\ln r` using the ``deriv`` parameter.
 
     Parameters
     ----------
@@ -37,6 +40,11 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat'):
     window : str, optional
         Type of window function for computing the mass variance.  Supported
         values are ``'tophat'``, ``'gaussian'``.
+    krgood : bool, optional
+        Change given ``kr`` to the nearest value fulfilling the low-ringing
+        condition.
+    deriv : bool, optional
+        Return the first derivative of the mass variance instead.
 
     Returns
     -------
@@ -44,7 +52,13 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat'):
         Scales at which the mass variance is evaluated.
     sigma2_r : array_like (..., N)
         Mass variance in spheres of scale ``r``.  Leading axes correspond to
-        the input power spectrum.
+        the input power spectrum.  If ``deriv`` is true, the derivative is
+        returned instead.
+
+    Warnings
+    --------
+    Computing both the function itself and the derivative with ``krgood`` will
+    return different sets of ``r`` values for each.
 
     Notes
     -----
@@ -105,7 +119,7 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat'):
     # window function
     if window == 'tophat':
         if not -1 < q < 3:
-            raise ValueError('bias error: tophap window requires -1 < q < 3')
+            raise ValueError('bias error: tophat window requires -1 < q < 3')
 
         def U(x):
             dlg = loggamma((1 + x)/2) - loggamma((4 - x)/2)
@@ -121,24 +135,31 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat'):
     else:
         raise ValueError(f'unknown window function: {window}')
 
+    # derivative
+    if deriv:
+        def U_deriv(U):
+            return lambda x: -(1 + x)*U(x)
+
+        U = U_deriv(U)
+
     # low-ringing condition
-    y = PI/dlnk
-    u = np.exp(-1j*y*lnkr)*U(q + 1j*y)
-    a = np.angle(u)/PI
-    lnkr = lnkr + dlnk*(a - np.round(a))
+    if krgood:
+        y = PI/dlnk
+        u = np.exp(-1j*y*lnkr)*U(q + 1j*y)
+        a = np.angle(u)/PI
+        lnkr = lnkr + dlnk*(a - np.round(a))
 
     # transform factor
     y = np.linspace(0, 2*PI*(n//2)/(n*dlnk), n//2+1)
     u = np.exp(-1j*y*lnkr)*U(q + 1j*y)
 
-    # ensure that kr is good for n even
-    if not n & 1:
-        # low ringing kr should make last coefficient real
-        if not np.isclose(u[-1].imag, 0):
-            raise ValueError('unable to construct low-ringing transform, '
-                             'try odd number of points or different q')
+    # low-ringing kr should make last coefficient real
+    if krgood and not np.isclose(u[-1].imag, 0):
+        raise ValueError('unable to construct low-ringing transform, '
+                         'try odd number of points or different q')
 
-        # fix last coefficient to be real
+    # fix last coefficient to real when n is even
+    if not n & 1:
         u.imag[-1] = 0
 
     # transform via real FFT
