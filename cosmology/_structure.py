@@ -92,6 +92,55 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat', krgood=True, deriv=False):
     .. [1] Hamilton A. J. S., 2000, MNRAS, 312, 257.
            doi:10.1046/j.1365-8711.2000.03071.x
 
+    Examples
+    --------
+    Create a mock power spectrum with a realistic shape.
+
+    >>> k = np.logspace(-4, 2, 40)
+    >>> pk = 4e6*k/(1 + k*25)**3.5
+    >>>
+    >>> import matplotlib.pyplot as plt
+    >>> plt.loglog(k, pk)
+    >>> plt.xlabel('$k$')
+    >>> plt.ylabel('$P(k)$')
+    >>> plt.show()
+
+    Compute the mass variance from the power spectrum without setting any
+    optional parameters.
+
+    >>> from cosmology import sigma2_r
+    >>>
+    >>> r, s2 = sigma2_r(k, pk)
+    >>>
+    >>> plt.loglog(r, s2)
+    >>> plt.xlabel('$r$')
+    >>> plt.ylabel('$\\sigma^2_r$')
+    >>> plt.show()
+
+    The computed mass variance shows a numerical issue on the right, which is
+    due to the circular nature of the integral transform it employs.  By
+    computing the mass variance with a biased transform (``q = 0.8``), the
+    problem disappears.  The exact value of the bias parameter ``q`` depends on
+    the shape of the input power spectrum.
+
+    >>> r, s2 = sigma2_r(k, pk, q=0.8)
+    >>>
+    >>> plt.loglog(r, s2)
+    >>> plt.xlabel('$r$')
+    >>> plt.ylabel('$\\sigma^2_r$')
+    >>> plt.show()
+
+    The integral transform method makes it possible to compute the derivative
+    of the mass variance with very little extra computational cost.
+
+    >>> r, s2, ds2_dlnr = sigma2_r(k, pk, q=0.8, deriv=True)
+    >>>
+    >>> plt.loglog(r, s2)
+    >>> plt.loglog(r, -ds2_dlnr)
+    >>> plt.xlabel('$r$')
+    >>> plt.ylabel('$\\sigma^2_r$ and $-d\\sigma^2_r/d\ln r$')
+    >>> plt.show()
+
     '''
 
     if np.ndim(k) != 1:

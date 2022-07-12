@@ -28,8 +28,9 @@ author = 'Nicolas Tessore'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
+    'numpydoc',
+    'matplotlib.sphinxext.plot_directive',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -52,3 +53,16 @@ html_theme = 'furo'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+
+# -- numpydoc extension -----------------------------------------------------
+
+numpydoc_use_plots = True
+numpydoc_show_class_members = False
+
+
+# -- matplotlib extension ----------------------------------------------------
+
+plot_include_source = True
+plot_html_show_source_link = False
+plot_html_show_formats = False
