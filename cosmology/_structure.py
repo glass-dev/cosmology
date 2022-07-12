@@ -22,8 +22,8 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat', krgood=True, deriv=False):
     is scaled such that :math:`k_i \, r_{n-i+1} = 1 \forall i = 1, \ldots, n`,
     but can be shifted to other constants using the ``kr`` parameter.
 
-    The function can return the derivative of :math:`\sigma^2(r)` with respect
-    to :math:`\ln r` using the ``deriv`` parameter.
+    The function optionally computes the derivative of :math:`\sigma^2(r)` with
+    respect to :math:`\ln r` at the same time, if ``deriv`` is true.
 
     Parameters
     ----------
@@ -44,7 +44,7 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat', krgood=True, deriv=False):
         Change given ``kr`` to the nearest value fulfilling the low-ringing
         condition.
     deriv : bool, optional
-        Return the first derivative of the mass variance instead.
+        Also return the first derivative of the mass variance.
 
     Returns
     -------
@@ -52,13 +52,10 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat', krgood=True, deriv=False):
         Scales at which the mass variance is evaluated.
     sigma2_r : array_like (..., N)
         Mass variance in spheres of scale ``r``.  Leading axes correspond to
-        the input power spectrum.  If ``deriv`` is true, the derivative is
-        returned instead.
-
-    Warnings
-    --------
-    Computing both the function itself and the derivative with ``krgood`` will
-    return different sets of ``r`` values for each.
+        the input power spectrum.
+    dsigma2_dlnr : array_like (..., N), optional
+        If ``deriv`` is true, the derivative of ``sigma2_r`` with respect to
+        the logarithm of ``r``.
 
     Notes
     -----
@@ -135,13 +132,6 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat', krgood=True, deriv=False):
     else:
         raise ValueError(f'unknown window function: {window}')
 
-    # derivative
-    if deriv:
-        def U_deriv(U):
-            return lambda x: -(1 + x)*U(x)
-
-        U = U_deriv(U)
-
     # low-ringing condition
     if krgood:
         y = PI/dlnk
@@ -163,17 +153,29 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat', krgood=True, deriv=False):
         u.imag[-1] = 0
 
     # transform via real FFT
-    xi = np.fft.rfft(pk*k**(2-q), axis=-1)
-    xi *= u
-    xi = np.fft.irfft(xi, n, axis=-1)
-    xi[..., :] = xi[..., ::-1]
+    cm = np.fft.rfft(pk*k**(2-q), axis=-1)
+    cm *= u
+    s2 = np.fft.irfft(cm, n, axis=-1)
+    s2[..., :] = s2[..., ::-1]
 
     # set up r in log space
     r = np.exp(lnkr)/k[::-1]
 
     # prefactor for output
-    xi /= 2*PI**2
-    xi /= r**(1+q)
+    s2 /= 2*PI**2
+    s2 /= r**(1+q)
 
-    # done, return separations and correlations
-    return r, xi
+    # result for scales and sigma2
+    result = (r, s2)
+
+    # derivative
+    if deriv:
+        cm *= -(1 + q + 1j*y)
+        ds2 = np.fft.irfft(cm, n, axis=-1)
+        ds2[..., :] = ds2[..., ::-1]
+        ds2 /= 2*PI**2
+        ds2 /= r**(1+q)
+        result = result + (ds2,)
+
+    # return all results
+    return result
