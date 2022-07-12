@@ -10,12 +10,25 @@ from functools import lru_cache
 
 @dataclass(frozen=True)
 class LCDM:
+    '''LambdaCDM background cosmology'''
+
     h: float
+    '''dimensionless Hubble parameter'''
+
     Om: float
+    '''matter density parameter'''
+
     Ol: float = None
+    '''Lambda density parameter'''
+
     Ok: float = None
+    '''curvature density parameter'''
+
     zmax: float = field(default=1100., repr=False)
+    '''maximum redshift for automatic interpolation'''
+
     gamma: float = field(default=6/11, repr=False)
+    '''growth rate parameter'''
 
     def _set(self, a, v):
         object.__setattr__(self, a, v)
@@ -72,7 +85,7 @@ class LCDM:
         return self.Om*(1+z)**3/self.Oz(z)
 
     def Olz(self, z):
-        '''redshift-dependent lambda density parameter'''
+        '''redshift-dependent Lambda density parameter'''
         return self.Ol/self.Oz(z)
 
     def Okz(self, z):
