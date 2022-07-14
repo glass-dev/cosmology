@@ -4,6 +4,7 @@
 
 import numpy as np
 from scipy.special import loggamma
+from fftl import fftl
 
 PI = np.pi
 SRPI = PI**0.5
@@ -143,31 +144,12 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat', krgood=True, deriv=False):
 
     '''
 
-    if np.ndim(k) != 1:
-        raise TypeError('k must be 1d array')
-    if np.shape(pk)[-1] != len(k):
-        raise TypeError('last axis of pk must agree with size of k')
-
-    # set up log space k
-    lnkr = np.log(kr)
-    n = len(k)
-    lnk1 = np.log(k[0])
-    lnkn = np.log(k[-1])
-    lnkc = (lnk1 + lnkn)/2
-    dlnk = (lnkn - lnk1)/(n-1)
-    jc = (n-1)/2
-    j = np.arange(n)
-
-    # make sure given k is linear in log space
-    if not np.allclose(k, np.exp(lnkc + (j-jc)*dlnk)):
-        raise ValueError('k array not a logarithmic grid')
-
     # window function
     if window == 'tophat':
         if not -1 < q < 3:
             raise ValueError('bias error: tophat window requires -1 < q < 3')
 
-        def U(x):
+        def u(x):
             dlg = loggamma((1 + x)/2) - loggamma((4 - x)/2)
             return 9*SRPI*np.exp(dlg)/((4 - x)**2 - 1)
 
@@ -175,56 +157,20 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat', krgood=True, deriv=False):
         if not q > -1:
             raise ValueError('bias error: gaussian window requires q > -1')
 
-        def U(x):
+        def u(x):
             return np.exp(loggamma((x + 1)/2))/2
 
     else:
         raise ValueError(f'unknown window function: {window}')
 
-    # low-ringing condition
-    if krgood:
-        y = PI/dlnk
-        u = np.exp(-1j*y*lnkr)*U(q + 1j*y)
-        a = np.angle(u)/PI
-        lnkr = lnkr + dlnk*(a - np.round(a))
+    # compute the transform for the given window
+    # input function of the transform is pk*k**2 to give a more natural bias
+    r, *vals = fftl(u, k, pk*k**2, q=q, kr=kr, krgood=krgood, deriv=deriv)
 
-    # transform factor
-    y = np.linspace(0, 2*PI*(n//2)/(n*dlnk), n//2+1)
-    u = np.exp(-1j*y*lnkr)*U(q + 1j*y)
+    # scale all output values by prefactor
+    f = 1/(2*PI**2)
+    for v in vals:
+        v *= f
 
-    # low-ringing kr should make last coefficient real
-    if krgood and not np.isclose(u[-1].imag, 0):
-        raise ValueError('unable to construct low-ringing transform, '
-                         'try odd number of points or different q')
-
-    # fix last coefficient to real when n is even
-    if not n & 1:
-        u.imag[-1] = 0
-
-    # transform via real FFT
-    cm = np.fft.rfft(pk*k**(2-q), axis=-1)
-    cm *= u
-    s2 = np.fft.irfft(cm, n, axis=-1)
-    s2[..., :] = s2[..., ::-1]
-
-    # set up r in log space
-    r = np.exp(lnkr)/k[::-1]
-
-    # prefactor for output
-    s2 /= 2*PI**2
-    s2 /= r**(1+q)
-
-    # result for scales and sigma2
-    result = (r, s2)
-
-    # derivative
-    if deriv:
-        cm *= -(1 + q + 1j*y)
-        ds2 = np.fft.irfft(cm, n, axis=-1)
-        ds2[..., :] = ds2[..., ::-1]
-        ds2 /= 2*PI**2
-        ds2 /= r**(1+q)
-        result = result + (ds2,)
-
-    # return all results
-    return result
+    # return results
+    return r, *vals
