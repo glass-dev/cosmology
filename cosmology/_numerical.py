@@ -72,6 +72,7 @@ def cubic(xi, x, y, yp):
 
 def cubic_inv(yi, x, y, yp):
     '''inverse cubic interpolation given derivatives'''
+    yi = np.asanyarray(yi)
     i1 = np.digitize(yi, y)
     i0 = i1-1
 
