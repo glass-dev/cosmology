@@ -30,6 +30,9 @@ class LCDM:
     gamma: float = field(default=6/11, repr=False)
     '''growth rate parameter'''
 
+    grav: float = field(default=4.30091e-3, repr=False)
+    '''gravitational constant G in pc (km/s)² Msol⁻¹'''
+
     def _set(self, a, v):
         object.__setattr__(self, a, v)
 
@@ -71,6 +74,12 @@ class LCDM:
         '''Hubble distance'''
         return 2997.92458/self.h
 
+    @property
+    @lru_cache(maxsize=None)
+    def rho_c0(self):
+        '''critical density at redshift 0'''
+        return 3e10/(8*np.pi*self.grav)*self.h**2
+
     def a(self, z):
         '''scale factor'''
         return 1/np.add(z, 1)
@@ -91,6 +100,18 @@ class LCDM:
     def Okz(self, z):
         '''redshift-dependent curvature density parameter'''
         return self.Ok*(1+z)**2/self.Oz(z)
+
+    def rho_c(self, z):
+        '''redshift-dependent critical density'''
+        return self.rho_c0*self.Oz(z)
+
+    def rho_m(self, z):
+        '''redshift-dependent matter density'''
+        return self.Om*(1+z)**3*self.rho_c0
+
+    def rho_k(self, z):
+        '''redshift-dependent curvature density'''
+        return self.Ok*(1+z)**2*self.rho_c0
 
     def e(self, z):
         '''dimensionless Hubble function'''
