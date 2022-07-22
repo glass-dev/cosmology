@@ -173,4 +173,4 @@ def sigma2_r(k, pk, q=0.0, kr=1.0, window='tophat', krgood=True, deriv=False):
         v *= f
 
     # return results
-    return r, *vals
+    return (r, *vals)
